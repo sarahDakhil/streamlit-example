@@ -2,3 +2,4 @@ altair
 pandas
 streamlit
 surprise
+streamlit_card
