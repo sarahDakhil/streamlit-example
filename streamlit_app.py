@@ -10,7 +10,7 @@ from streamlit_card import card
 
 st.title('📑Book Recommendation')
 
-final_data = pd.read_csv(r'C:\Users\saldi\Downloads\final_Data_book.csv')
+final_data = pd.read_csv(r'final_Data_book.csv')
 
 # Convert the DataFrame to a Surprise dataset object
 reader = Reader(rating_scale=(1, 10))  # Define the rating scale
