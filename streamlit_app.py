@@ -1,38 +1,86 @@
-from collections import namedtuple
-import altair as alt
-import math
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import numpy as np
+from surprise import Reader
+from surprise import Dataset
+from surprise.model_selection import train_test_split
+from surprise import SVD
+from surprise import accuracy
+from streamlit_card import card
 
-"""
-# Welcome to Streamlit!
+st.title('📑Book Recommendation')
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
+final_data = pd.read_csv(r'C:\Users\saldi\Downloads\final_Data_book.csv')
 
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+# Convert the DataFrame to a Surprise dataset object
+reader = Reader(rating_scale=(1, 10))  # Define the rating scale
+data = Dataset.load_from_df(final_data[['User-ID', 'ISBN', 'Book-Rating']], reader)
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+# Split the dataset into training and test sets
+trainset, testset = train_test_split(data, test_size=0.25)
 
+'''
+User-based collaborative recommendation system for books. Enter the user ID below.
+'''
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
+model = SVD()
+model.fit(trainset)
 
-    Point = namedtuple('Point', 'x y')
-    data = []
+# Generate recommendations for a target user
 
-    points_per_turn = total_points / num_turns
+# Select a target user
+target_user_id = st.text_input('🔑User ID')
+if st.button("Get Recommendation"):
+    if target_user_id.strip() != '':
+        target_user_id = int(target_user_id)
+        top_n = 5  # Number of recommendations to generate
 
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
+        target_user_items = final_data[final_data['User-ID'] == target_user_id]
+        predicted_ratings = [(item_id, model.predict(target_user_id, item_id).est) for item_id in target_user_items['ISBN']]
+        predicted_ratings.sort(key=lambda x: x[1], reverse=True)
+        recommended_items = [item_id for item_id, _ in predicted_ratings[:top_n]]
 
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
+        # Print the ISBN, Book-Title, and Image-URL-L of the recommended books
+        if recommended_items:
+            st.header("Here's our picks for you ❤️", divider='orange')
+            for item_id in recommended_items:
+                book_info = final_data[final_data['ISBN'] == item_id][['ISBN', 'Book-Title', 'Image-URL-L']].values[0]
+                hasClicked = card(
+                    title=book_info[1],
+                    text=' ',
+                    image=book_info[2],
+                    url=book_info[2],
+                    styles={
+                        "card": {
+                            "width": "500px",
+                            "height": "500px",
+                            "border-radius": "60px",
+                            "box-shadow": "0 0 10px rgba(0,0,0,0.5)",
+                        }
+                    }
+                )
+                st.write()
+        else:
+            st.write("haven't read any books 🐢...")
+            st.header("Check out our top 5 book list🎈", divider='orange')
+            Top_books = final_data.loc[final_data['Book-Rating'] > 8].sort_values(by='Book-Rating', ascending=False).sample(5, replace=False)
+            for index, book in Top_books.iterrows():
+                hasClicked = card(
+                    title=book['Book-Title'],
+                    text=' ',
+                    image=book['Image-URL-L'],
+                    url=book['Image-URL-L'],
+                    styles={
+                        "card": {
+                            "width": "500px",
+                            "height": "500px",
+                            "border-radius": "60px",
+                            "box-shadow": "0 0 10px rgba(0,0,0,0.5)",
+                        }
+                    }
+                )
+                st.write()
+            
+    else:
+        st.write("Please enter a valid User ID.")
+
